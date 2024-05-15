@@ -8,10 +8,12 @@ import (
 const (
 	BeaconHttpFlagName              = "l1-beacon-http"
 	BeaconHttpClientTimeoutFlagName = "l1-beacon-client-timeout"
+	BeaconHttpEnforceJson           = "l1-beacon-enforce-json"
 	DataStoreFlagName               = "data-store"
 	S3CredentialTypeFlagName        = "s3-credential-type"
 	S3EndpointFlagName              = "s3-endpoint"
 	S3EndpointHttpsFlagName         = "s3-endpoint-https"
+	S3CompressFlagName              = "s3-compress"
 	S3AccessKeyFlagName             = "s3-access-key"
 	S3SecretAccessKeyFlagName       = "s3-secret-access-key"
 	S3BucketFlagName                = "s3-bucket"
@@ -51,6 +53,12 @@ func CLIFlags(envPrefix string) []cli.Flag {
 			Value:   true,
 			EnvVars: opservice.PrefixEnvVar(envPrefix, "S3_ENDPOINT_HTTPS"),
 		},
+		&cli.BoolFlag{
+			Name:    S3CompressFlagName,
+			Usage:   "Whether to compress data before storing in S3",
+			Value:   false,
+			EnvVars: opservice.PrefixEnvVar(envPrefix, "S3_COMPRESS"),
+		},
 		&cli.StringFlag{
 			Name:    S3AccessKeyFlagName,
 			Usage:   "The S3 access key for the bucket",
@@ -81,6 +89,12 @@ func CLIFlags(envPrefix string) []cli.Flag {
 			Usage:   "The timeout duration for the beacon client",
 			Value:   "10s",
 			EnvVars: opservice.PrefixEnvVar(envPrefix, "L1_BEACON_CLIENT_TIMEOUT"),
+		},
+		&cli.BoolFlag{
+			Name:    BeaconHttpEnforceJson,
+			Usage:   "When true uses json for all requests/responses to the beacon node",
+			Value:   false,
+			EnvVars: opservice.PrefixEnvVar(envPrefix, "L1_BEACON_CLIENT_ENFORCE_JSON"),
 		},
 	}
 }
