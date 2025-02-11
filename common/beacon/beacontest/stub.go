@@ -10,7 +10,7 @@ import (
 	v1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/base-org/blob-archiver/common/blobtest"
+	"github.com/base/blob-archiver/common/blobtest"
 	"github.com/ethereum/go-ethereum/common"
 )
 

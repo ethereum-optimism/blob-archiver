@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/base-org/blob-archiver/archiver/flags"
-	"github.com/base-org/blob-archiver/archiver/metrics"
+	"github.com/base/blob-archiver/archiver/flags"
+	"github.com/base/blob-archiver/archiver/metrics"
 	"github.com/ethereum-optimism/optimism/op-service/httputil"
 	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
 	"github.com/ethereum/go-ethereum/log"

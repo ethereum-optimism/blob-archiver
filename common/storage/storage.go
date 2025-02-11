@@ -7,7 +7,7 @@ import (
 
 	v1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/deneb"
-	"github.com/base-org/blob-archiver/common/flags"
+	"github.com/base/blob-archiver/common/flags"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )

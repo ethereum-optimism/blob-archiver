@@ -19,7 +19,7 @@ The `s3` backend will also work with (for example) Google Cloud Storage buckets 
 
 ### Data Validity
 Currently, the archiver and api do not validate the beacon node's data. Therefore, it's important to either trust the 
-Beacon node, or validate the data in the client. There is an open [issue](https://github.com/base-org/blob-archiver/issues/4) 
+Beacon node, or validate the data in the client. There is an open [issue](https://github.com/base/blob-archiver/issues/4) 
 to add data validation to the archiver and api.
 
 ### Development

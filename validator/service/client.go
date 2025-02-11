@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/attestantio/go-eth2-client/api"
-	"github.com/base-org/blob-archiver/common/storage"
+	"github.com/base/blob-archiver/common/storage"
 )
 
 type Format string

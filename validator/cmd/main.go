@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/base-org/blob-archiver/common/beacon"
-	"github.com/base-org/blob-archiver/validator/flags"
-	"github.com/base-org/blob-archiver/validator/service"
+	"github.com/base/blob-archiver/common/beacon"
+	"github.com/base/blob-archiver/validator/flags"
+	"github.com/base/blob-archiver/validator/service"
 	opservice "github.com/ethereum-optimism/optimism/op-service"
 	"github.com/ethereum-optimism/optimism/op-service/cliapp"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
