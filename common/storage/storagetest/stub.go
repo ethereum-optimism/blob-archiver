@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/base-org/blob-archiver/common/storage"
+	"github.com/base/blob-archiver/common/storage"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/require"

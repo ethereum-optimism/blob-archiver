@@ -9,9 +9,9 @@ import (
 	client "github.com/attestantio/go-eth2-client"
 	"github.com/attestantio/go-eth2-client/api"
 	v1 "github.com/attestantio/go-eth2-client/api/v1"
-	"github.com/base-org/blob-archiver/archiver/flags"
-	"github.com/base-org/blob-archiver/archiver/metrics"
-	"github.com/base-org/blob-archiver/common/storage"
+	"github.com/base/blob-archiver/archiver/flags"
+	"github.com/base/blob-archiver/archiver/metrics"
+	"github.com/base/blob-archiver/common/storage"
 	"github.com/ethereum-optimism/optimism/op-service/retry"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -83,7 +83,7 @@ func (a *Archiver) Stop(ctx context.Context) error {
 // and a boolean indicating whether the blobs already existed in S3 and any errors that occur.
 // If the blobs are already stored, it will not overwrite the data. Currently, the archiver does not
 // perform any validation of the blobs, it assumes a trusted beacon node. See:
-// https://github.com/base-org/blob-archiver/issues/4.
+// https://github.com/base/blob-archiver/issues/4.
 func (a *Archiver) persistBlobsForBlockToS3(ctx context.Context, blockIdentifier string, overwrite bool) (*v1.BeaconBlockHeader, bool, error) {
 	currentHeader, err := a.beaconClient.BeaconBlockHeader(ctx, &api.BeaconBlockHeaderOpts{
 		Block: blockIdentifier,

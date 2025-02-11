@@ -13,8 +13,8 @@ import (
 	"github.com/attestantio/go-eth2-client/api"
 	v1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/base-org/blob-archiver/common/storage"
-	"github.com/base-org/blob-archiver/validator/flags"
+	"github.com/base/blob-archiver/common/storage"
+	"github.com/base/blob-archiver/validator/flags"
 	"github.com/ethereum-optimism/optimism/op-service/retry"
 	"github.com/ethereum/go-ethereum/log"
 )

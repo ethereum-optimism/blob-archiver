@@ -1,4 +1,4 @@
-module github.com/base-org/blob-archiver
+module github.com/base/blob-archiver
 
 go 1.21.6
 

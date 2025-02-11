@@ -5,7 +5,7 @@ import (
 
 	client "github.com/attestantio/go-eth2-client"
 	"github.com/attestantio/go-eth2-client/http"
-	"github.com/base-org/blob-archiver/common/flags"
+	"github.com/base/blob-archiver/common/flags"
 	"github.com/rs/zerolog"
 )
 

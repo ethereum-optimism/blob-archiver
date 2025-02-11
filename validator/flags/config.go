@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	common "github.com/base-org/blob-archiver/common/flags"
+	common "github.com/base/blob-archiver/common/flags"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
 	"github.com/urfave/cli/v2"
 )

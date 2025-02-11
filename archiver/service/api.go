@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	m "github.com/base-org/blob-archiver/archiver/metrics"
+	m "github.com/base/blob-archiver/archiver/metrics"
 	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/go-chi/chi/v5"

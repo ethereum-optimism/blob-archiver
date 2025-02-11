@@ -1,7 +1,7 @@
 package flags
 
 import (
-	common "github.com/base-org/blob-archiver/common/flags"
+	common "github.com/base/blob-archiver/common/flags"
 	opservice "github.com/ethereum-optimism/optimism/op-service"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
 	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
