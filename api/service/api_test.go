@@ -73,6 +73,7 @@ func TestAPIService(t *testing.T) {
 
 	rootOne := common.HexToHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
 	rootTwo := common.HexToHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890222222")
+	rootThree := common.HexToHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890333333")
 
 	blockOne := storage.BlobData{
 		Header: storage.Header{
@@ -92,10 +93,23 @@ func TestAPIService(t *testing.T) {
 		},
 	}
 
+	// Pectra Block
+	blockThree := storage.BlobData{
+		Header: storage.Header{
+			BeaconBlockHash: rootThree,
+		},
+		BlobSidecars: storage.BlobSidecars{
+			Data: blobtest.NewBlobSidecars(t, 8), // More than 6 blobs
+		},
+	}
+
 	err := fs.WriteBlob(context.Background(), blockOne)
 	require.NoError(t, err)
 
 	err = fs.WriteBlob(context.Background(), blockTwo)
+	require.NoError(t, err)
+
+	err = fs.WriteBlob(context.Background(), blockThree)
 	require.NoError(t, err)
 
 	beaconClient.Headers["finalized"] = &v1.BeaconBlockHeader{
@@ -240,6 +254,24 @@ func TestAPIService(t *testing.T) {
 			name:   "unknown route",
 			path:   "/eth/v1/",
 			status: 404,
+		},
+		{
+			name:   "pectra: query all blobs",
+			path:   fmt.Sprintf("/eth/v1/beacon/blob_sidecars/%s", rootThree),
+			status: 200,
+			expected: &storage.BlobSidecars{
+				Data: blockThree.BlobSidecars.Data,
+			},
+		},
+		{
+			name:   "pectra: query blob greater than 6",
+			path:   fmt.Sprintf("/eth/v1/beacon/blob_sidecars/%s?indices=7", rootThree),
+			status: 200,
+			expected: &storage.BlobSidecars{
+				Data: []*deneb.BlobSidecar{
+					blockThree.BlobSidecars.Data[7],
+				},
+			},
 		},
 	}
 
