@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	common "github.com/base-org/blob-archiver/common/flags"
+	common "github.com/base/blob-archiver/common/flags"
 	oplog "github.com/ethereum-optimism/optimism/op-service/log"
 	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
 	geth "github.com/ethereum/go-ethereum/common"

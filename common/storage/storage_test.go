@@ -5,7 +5,7 @@ import (
 
 	"github.com/attestantio/go-eth2-client/api"
 	"github.com/attestantio/go-eth2-client/spec/deneb"
-	"github.com/base-org/blob-archiver/common/blobtest"
+	"github.com/base/blob-archiver/common/blobtest"
 	"github.com/stretchr/testify/require"
 )
 

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/base-org/blob-archiver/archiver/flags"
-	"github.com/base-org/blob-archiver/archiver/metrics"
-	"github.com/base-org/blob-archiver/common/storage/storagetest"
+	"github.com/base/blob-archiver/archiver/flags"
+	"github.com/base/blob-archiver/archiver/metrics"
+	"github.com/base/blob-archiver/common/storage/storagetest"
 	"github.com/ethereum-optimism/optimism/op-service/testlog"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/require"
