@@ -18,9 +18,9 @@ either `file` or `s3`.
 The `s3` backend will also work with (for example) Google Cloud Storage buckets (instructions [here](https://medium.com/google-cloud/using-google-cloud-storage-with-minio-object-storage-c994fe4aab6b)). 
 
 ### Data Validity
-Currently, the archiver and api do not validate the beacon node's data. Therefore, it's important to either trust the 
+Currently, the archiver and API do not validate the beacon node's data. Therefore, it's important to either trust the 
 Beacon node, or validate the data in the client. There is an open [issue](https://github.com/base/blob-archiver/issues/4) 
-to add data validation to the archiver and api.
+to add data validation to the archiver and API.
 
 ### Development
 The `Makefile` contains a number of commands for development:
