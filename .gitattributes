@@ -1,0 +1,3 @@
+# Keep our local workflow files when merging from upstream
+.github/workflows/* merge=ours
+
