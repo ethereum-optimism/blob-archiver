@@ -1,0 +1,46 @@
+name: build
+# Test fork PR flow - this comment can be removed
+
+on:
+  push:
+    branches:
+      - 'master'
+  pull_request:
+    branches:
+      - 'master'
+
+jobs:
+  local-branch:
+    # only build if the push is to a local branch, or if the PR is from a local branch
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+    uses: ethereum-optimism/factory/.github/workflows/docker-build.yaml@f08b1f0c47f15b3c95dc9811fb09c1d8ed3436bd
+    with:
+      image_name: blob-archiver
+      context: .
+      dockerfile: Dockerfile
+      registry: us-docker.pkg.dev/oplabs-tools-artifacts/oss
+      gcp_project_id: ${{ vars.GCP_PROJECT_ID_OPLABS_TOOLS_ARTIFACTS }}
+      build_args: |
+        VERSION=${{ github.ref_name }}
+        COMMIT=${{ github.sha }}
+        BUILDNUM=${{ github.run_number }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+  fork-branch:
+    # only build if the PR is from a fork
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+    uses: ethereum-optimism/factory/.github/workflows/docker-build.yaml@f08b1f0c47f15b3c95dc9811fb09c1d8ed3436bd
+    with:
+      image_name: blob-archiver
+      context: .
+      dockerfile: Dockerfile
+      registry: ttl.sh/${{ github.sha }}
+      build_args: |
+        VERSION=${{ github.ref_name }}
+        COMMIT=${{ github.sha }}
+        BUILDNUM=${{ github.run_number }}
+    permissions:
+      contents: read
