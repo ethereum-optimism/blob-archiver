@@ -17,9 +17,11 @@ import (
 	m "github.com/base/blob-archiver/api/metrics"
 	"github.com/base/blob-archiver/api/version"
 	"github.com/base/blob-archiver/common/storage"
+	opeth "github.com/ethereum-optimism/optimism/op-service/eth"
 	opmetrics "github.com/ethereum-optimism/optimism/op-service/metrics"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -77,6 +79,13 @@ func newOutOfRangeError(input uint64, blobCount int) *httpError {
 	}
 }
 
+func newVersionedHashError(input string) *httpError {
+	return &httpError{
+		Code:    http.StatusBadRequest,
+		Message: fmt.Sprintf("invalid versioned hash: %s", input),
+	}
+}
+
 type API struct {
 	dataStoreClient storage.DataStoreReader
 	beaconClient    client.BeaconBlockHeadersProvider
@@ -107,6 +116,7 @@ func NewAPI(dataStoreClient storage.DataStoreReader, beaconClient client.BeaconB
 	})
 
 	r.Get("/eth/v1/beacon/blob_sidecars/{id}", result.blobSidecarHandler)
+	r.Get("/eth/v1/beacon/blobs/{id}", result.blobsHandler)
 	r.Get("/eth/v1/node/version", result.versionHandler)
 
 	return result
@@ -226,6 +236,81 @@ func (a *API) blobSidecarHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// blobsResponse is the response format for the /eth/v1/beacon/blobs/{id} endpoint.
+// Returns raw hex-encoded blobs wrapped in a data envelope.
+type blobsResponse struct {
+	Data []hexutil.Bytes `json:"data"`
+}
+
+// blobsHandler implements the /eth/v1/beacon/blobs/{id} endpoint.
+// Returns raw blobs (without sidecar metadata), matching the current beacon API format
+// used by op-node and op-supernode.
+func (a *API) blobsHandler(w http.ResponseWriter, r *http.Request) {
+	param := chi.URLParam(r, "id")
+	beaconBlockHash, err := a.toBeaconBlockHash(param)
+	if err != nil {
+		err.write(w)
+		return
+	}
+
+	result, storageErr := a.dataStoreClient.ReadBlob(r.Context(), beaconBlockHash)
+	if storageErr != nil {
+		if errors.Is(storageErr, storage.ErrNotFound) {
+			errUnknownBlock.write(w)
+		} else {
+			a.logger.Info("unexpected error fetching blobs", "err", storageErr, "beaconBlockHash", beaconBlockHash.String(), "param", param)
+			errServerError.write(w)
+		}
+		return
+	}
+
+	sidecars := result.BlobSidecars.Data
+	versionedHashes, err := parseVersionedHashes(r.URL.Query()["versioned_hashes"])
+	if err != nil {
+		err.write(w)
+		return
+	}
+
+	blobs := make([]hexutil.Bytes, 0, len(sidecars))
+	for _, sc := range sidecars {
+		if len(versionedHashes) > 0 {
+			commitment := kzg4844.Commitment(sc.KZGCommitment)
+			if _, ok := versionedHashes[opeth.KZGToVersionedHash(commitment)]; !ok {
+				continue
+			}
+		}
+		blobs = append(blobs, sc.Blob[:])
+	}
+
+	w.Header().Set("Content-Type", jsonAcceptType)
+	if encErr := json.NewEncoder(w).Encode(blobsResponse{Data: blobs}); encErr != nil {
+		a.logger.Error("unable to encode blobs to JSON", "err", encErr)
+		errServerError.write(w)
+	}
+}
+
+func parseVersionedHashes(raw []string) (map[common.Hash]struct{}, *httpError) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+
+	var values []string
+	if len(raw) == 1 {
+		values = strings.Split(raw[0], ",")
+	} else {
+		values = raw
+	}
+
+	hashes := make(map[common.Hash]struct{}, len(values))
+	for _, value := range values {
+		if !isHash(value) {
+			return nil, newVersionedHashError(value)
+		}
+		hashes[common.HexToHash(value)] = struct{}{}
+	}
+	return hashes, nil
 }
 
 // filterBlobs filters the blobs based on the indices query provided.

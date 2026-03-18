@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 
@@ -18,9 +20,11 @@ import (
 	"github.com/base/blob-archiver/common/beacon/beacontest"
 	"github.com/base/blob-archiver/common/blobtest"
 	"github.com/base/blob-archiver/common/storage"
+	opclient "github.com/ethereum-optimism/optimism/op-service/client"
 	"github.com/ethereum-optimism/optimism/op-service/eth"
 	"github.com/ethereum-optimism/optimism/op-service/testlog"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/require"
 )
@@ -65,6 +69,91 @@ func setup(t *testing.T) (*API, *storage.FileStorage, *beacontest.StubBeaconClie
 	return a, fs, beacon, func() {
 		require.NoError(t, os.RemoveAll(tempDir))
 	}
+}
+
+func makeValidBlobSidecar(t *testing.T, i byte) *deneb.BlobSidecar {
+	t.Helper()
+
+	var blob deneb.Blob
+	blob[0] = i
+
+	commitment, err := kzg4844.BlobToCommitment((*kzg4844.Blob)(&blob))
+	require.NoError(t, err)
+
+	return &deneb.BlobSidecar{
+		Index:         deneb.BlobIndex(i),
+		Blob:          blob,
+		KZGCommitment: deneb.KZGCommitment(commitment),
+		KZGProof:      deneb.KZGProof{},
+		SignedBlockHeader: &phase0.SignedBeaconBlockHeader{
+			Message: &phase0.BeaconBlockHeader{},
+		},
+	}
+}
+
+func makeValidBlobSidecars(t *testing.T, count int) []*deneb.BlobSidecar {
+	t.Helper()
+
+	sidecars := make([]*deneb.BlobSidecar, count)
+	for i := 0; i < count; i++ {
+		sidecars[i] = makeValidBlobSidecar(t, byte(i))
+	}
+	return sidecars
+}
+
+func beaconBlobsViaHTTPClient(ctx context.Context, cl opclient.HTTP, slot uint64, hashes []common.Hash) (eth.APIBeaconBlobsResponse, error) {
+	reqQuery := make(url.Values)
+	for _, hash := range hashes {
+		reqQuery.Add("versioned_hashes", hash.Hex())
+	}
+	headers := http.Header{}
+	headers.Add("Accept", "application/json")
+	resp, err := cl.Get(ctx, fmt.Sprintf("eth/v1/beacon/blobs/%d", slot), reqQuery, headers)
+	if err != nil {
+		return eth.APIBeaconBlobsResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return eth.APIBeaconBlobsResponse{}, fmt.Errorf("failed request with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var blobsResp eth.APIBeaconBlobsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&blobsResp); err != nil {
+		return eth.APIBeaconBlobsResponse{}, err
+	}
+	if len(blobsResp.Data) != len(hashes) {
+		return eth.APIBeaconBlobsResponse{}, fmt.Errorf("#returned blobs(%d) != #requested blobs(%d)", len(blobsResp.Data), len(hashes))
+	}
+	return blobsResp, nil
+}
+
+func getBlobsByHashLikeOpService(ctx context.Context, cl opclient.HTTP, slot uint64, hashes []common.Hash) ([]*eth.Blob, error) {
+	resp, err := beaconBlobsViaHTTPClient(ctx, cl, slot, hashes)
+	if err != nil {
+		return nil, err
+	}
+	blobs := make([]*eth.Blob, len(hashes))
+	for _, blob := range resp.Data {
+		commitment, err := blob.ComputeKZGCommitment()
+		if err != nil {
+			return nil, fmt.Errorf("compute blob kzg commitment: %w", err)
+		}
+		got := eth.KZGToVersionedHash(commitment)
+		idx := -1
+		for i, h := range hashes {
+			if got == h && blobs[i] == nil {
+				idx = i
+				break
+			}
+		}
+		if idx == -1 {
+			return nil, fmt.Errorf("received a blob hash that does not match any expected hash: %s", got)
+		}
+		blobs[idx] = blob
+	}
+	return blobs, nil
 }
 
 func TestAPIService(t *testing.T) {
@@ -334,6 +423,89 @@ func TestAPIService(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestBlobsEndpoint(t *testing.T) {
+	a, fs, beacon, cleanup := setup(t)
+	defer cleanup()
+
+	root := common.HexToHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	block := storage.BlobData{
+		Header:       storage.Header{BeaconBlockHash: root},
+		BlobSidecars: storage.BlobSidecars{Data: makeValidBlobSidecars(t, 3)},
+	}
+	require.NoError(t, fs.WriteBlob(context.Background(), block))
+	beacon.Headers["1234"] = &v1.BeaconBlockHeader{Root: phase0.Root(root)}
+
+	versionedHash := func(sidecarIndex int) common.Hash {
+		commitment := kzg4844.Commitment(block.BlobSidecars.Data[sidecarIndex].KZGCommitment)
+		return eth.KZGToVersionedHash(commitment)
+	}
+
+	t.Run("all blobs", func(t *testing.T) {
+		request := httptest.NewRequest("GET", fmt.Sprintf("/eth/v1/beacon/blobs/%s", root), nil)
+		response := httptest.NewRecorder()
+		a.router.ServeHTTP(response, request)
+		require.Equal(t, 200, response.Code)
+
+		var resp eth.APIBeaconBlobsResponse
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &resp))
+		require.Equal(t, 3, len(resp.Data))
+		for i, blob := range resp.Data {
+			require.Equal(t, block.BlobSidecars.Data[i].Blob[:], blob[:])
+		}
+	})
+
+	t.Run("filters single versioned hash", func(t *testing.T) {
+		request := httptest.NewRequest("GET", fmt.Sprintf("/eth/v1/beacon/blobs/%s?versioned_hashes=%s", root, versionedHash(1).Hex()), nil)
+		response := httptest.NewRecorder()
+		a.router.ServeHTTP(response, request)
+		require.Equal(t, 200, response.Code)
+
+		var resp eth.APIBeaconBlobsResponse
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &resp))
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, block.BlobSidecars.Data[1].Blob[:], resp.Data[0][:])
+	})
+
+	t.Run("filters multiple versioned hashes in block order", func(t *testing.T) {
+		request := httptest.NewRequest("GET", fmt.Sprintf("/eth/v1/beacon/blobs/%s?versioned_hashes=%s&versioned_hashes=%s", root, versionedHash(2).Hex(), versionedHash(0).Hex()), nil)
+		response := httptest.NewRecorder()
+		a.router.ServeHTTP(response, request)
+		require.Equal(t, 200, response.Code)
+
+		var resp eth.APIBeaconBlobsResponse
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &resp))
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, block.BlobSidecars.Data[0].Blob[:], resp.Data[0][:])
+		require.Equal(t, block.BlobSidecars.Data[2].Blob[:], resp.Data[1][:])
+	})
+
+	t.Run("rejects malformed versioned hash", func(t *testing.T) {
+		request := httptest.NewRequest("GET", fmt.Sprintf("/eth/v1/beacon/blobs/%s?versioned_hashes=0x1234", root), nil)
+		response := httptest.NewRecorder()
+		a.router.ServeHTTP(response, request)
+		require.Equal(t, 400, response.Code)
+
+		var e httpError
+		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &e))
+		require.Equal(t, "invalid versioned hash: 0x1234", e.Message)
+	})
+
+	t.Run("op-service regression: subset request through beacon client succeeds", func(t *testing.T) {
+		mux := http.NewServeMux()
+		mux.Handle("/", a.router)
+		server := httptest.NewServer(mux)
+		defer server.Close()
+
+		httpClient := opclient.NewBasicHTTPClient(server.URL, testlog.Logger(t, log.LvlInfo))
+		requestedHashes := []common.Hash{versionedHash(2), versionedHash(0)}
+		blobs, err := getBlobsByHashLikeOpService(context.Background(), httpClient, 1234, requestedHashes)
+		require.NoError(t, err)
+		require.Len(t, blobs, 2)
+		require.Equal(t, block.BlobSidecars.Data[2].Blob[:], blobs[0][:])
+		require.Equal(t, block.BlobSidecars.Data[0].Blob[:], blobs[1][:])
+	})
 }
 
 func TestVersionHandler(t *testing.T) {
