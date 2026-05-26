@@ -10,9 +10,9 @@ RUN go mod download
 
 COPY . /app
 
-RUN make build
+RUN CGO_ENABLED=0 make build
 
-FROM alpine:3.19
+FROM chainguard/static:latest
 
 COPY --from=builder /app/archiver/bin/blob-archiver /usr/local/bin/blob-archiver
 COPY --from=builder /app/api/bin/blob-api /usr/local/bin/blob-api
