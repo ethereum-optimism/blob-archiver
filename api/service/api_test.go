@@ -394,9 +394,17 @@ func TestBlobsHandlerJSON(t *testing.T) {
 	require.Equal(t, 200, response.Code)
 	require.Equal(t, "application/json", response.Header().Get("Content-Type"))
 
-	var blobs v1.Blobs
-	err = json.Unmarshal(response.Body.Bytes(), &blobs)
+	// Regression guard: the response must be a JSON object with a top-level
+	// "data" field (per the beacon-API spec), not a bare JSON array. Consumers
+	// such as op-node decode into an object and fail on a bare array.
+	var raw map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &raw), "blobs response must be a JSON object")
+	require.Contains(t, raw, "data")
+
+	var resp BlobsResponse
+	err = json.Unmarshal(response.Body.Bytes(), &resp)
 	require.NoError(t, err)
+	blobs := resp.Data
 	require.Equal(t, len(testBlobs), len(blobs))
 
 	// Verify blob data matches
@@ -474,10 +482,10 @@ func TestBlobsHandlerWithVersionedHashes(t *testing.T) {
 
 	require.Equal(t, 200, response.Code)
 
-	var blobs v1.Blobs
-	err = json.Unmarshal(response.Body.Bytes(), &blobs)
+	var resp BlobsResponse
+	err = json.Unmarshal(response.Body.Bytes(), &resp)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(blobs))
+	require.Equal(t, 2, len(resp.Data))
 }
 
 func TestBlobsHandlerNotFound(t *testing.T) {

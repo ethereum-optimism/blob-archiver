@@ -316,6 +316,15 @@ func sidecarsToBlobs(sidecars []*deneb.BlobSidecar) v1.Blobs {
 	return blobs
 }
 
+// BlobsResponse is the JSON response body for the /eth/v1/beacon/blobs/{id}
+// endpoint. The blobs are wrapped in a top-level "data" field to match the
+// beacon-API spec (and the /eth/v1/beacon/blob_sidecars/ response). Without the
+// wrapper the endpoint emits a bare JSON array, which consumers such as op-node
+// cannot decode (they expect an object with a "data" field).
+type BlobsResponse struct {
+	Data v1.Blobs `json:"data"`
+}
+
 // blobsHandler implements the /eth/v1/beacon/blobs/{id} endpoint, using the underlying DataStoreReader
 // to fetch blobs instead of the beacon node. This endpoint serves blobs without KZG proofs.
 // Filtering by versioned_hashes query parameter is supported (per EIP-4844).
@@ -369,7 +378,7 @@ func (a *API) blobsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		w.Header().Set("Content-Type", jsonAcceptType)
-		err := json.NewEncoder(w).Encode(blobs)
+		err := json.NewEncoder(w).Encode(BlobsResponse{Data: blobs})
 		if err != nil {
 			a.logger.Error("unable to encode blobs to JSON", "err", err)
 			errServerError.write(w)
